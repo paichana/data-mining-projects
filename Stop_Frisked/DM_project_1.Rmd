@@ -1,0 +1,649 @@
+---
+title: "Data Mining Project 1"
+author: "Paichana Kularb"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+The Data is first loaded into RStudio:
+```{r}
+SQF = read.csv("/Users/boom/Desktop/Data mining/SQF_2016.csv",na.strings=" ",stringsAsFactors = TRUE)
+```
+Remove last row which is all NA values
+```{r}
+df = SQF[0:(nrow(SQF)-1),]
+```
+
+
+## Verify data quality
+### Locate missing values
+
+Columns with over 1 missing value can be seen by running
+```{r}
+colNA = colSums(is.na(df))
+colNA[colNA>0]
+```
+There are too many rows that contains NA values so i have decided to plot a historgram show the number of NA values in each row
+```{r}
+rowNA = rowSums(is.na(df))
+hist(rowNA,main = "NAs per row", xlab = "Numbers of NAs")
+```
+
+### Removing missing values
+
+#####arstoffn
+The arstoffn columns indicates why a suspect get arrested, and if the suspect didn't get arrested the values will be NA. Any row where no arrest is made (arst=='N'), arstoffn will be filled with 'NOARREST'
+```{r}
+levels(df$arstoffn) <- c(levels(df$arstoffn),"NOARREST")
+df$arstoffn[df$arstmade=='N'] = 'NOARREST' 
+summary(is.na(df$arstoffn))
+```
+There is still 1 NA value when the arrested was made but no reason was given, the mode(except NOARREST) of the reason for arrest will use to fill in 1 NA.
+```{r}
+df$arstoffn[is.na(df$arstoffn)] = "CPW"
+```
+
+#####sumoffen
+The sumoffen column indicates why a suspect is summoned, and if no summoned is issued the values will be NA. Any row where the summon is not made(sumissue=='N'), sumoffen will be filled with 'NOSUMMON'
+```{r}
+levels(df$sumoffen) <- c(levels(df$sumoffen),"NOSUMMON")
+df$sumoffen[df$sumissue=='N'] = 'NOSUMMON'
+summary(is.na(df$sumissue))
+```
+
+#####offcrid
+The offcrid column indicates whether an ID card is provided by the officer when not in uniform, and if the officer is in uniform the value will be null. Any row where officer is in uniform(offunif=='Y'), offcrid will be filled with 'INUNIFORM'
+```{r}
+levels(df$officrid) <- c(levels(df$officrid),"INUNIFORM")
+df$officrid[df$offunif=='Y'] = 'INUNIFORM'
+summary(is.na(df$officrid))
+```
+There is still 3986 NA values after 'INUNIFORM' is filled. The NA values will be assume that officer didn't provide ID card even not in uniform. So NA values will be filled with 'N'
+```{r}
+levels(df$officrid) <- c(levels(df$offunif),'N')
+df$officrid[df$offunif=='N' & is.na(df$officrid)] = 'N'
+```
+
+#####offverb
+The offverb column indicates whether verbal statement is provided by the officer when not in uniform, and if the officer is in uniform the value will be null. Any row where officer is in uniform(offunif=='Y'), offverb will be filled with 'INUNIFORM'
+```{r}
+levels(df$offverb) <- c(levels(df$offverb),"INUNIFORM")
+df$offverb[df$offunif=='Y'] = 'INUNIFORM'
+summary(df$offverb)
+```
+There is still 1126 NA values after 'INUNIFORM' is filled. The NA values will be assume that officer didn't provide verbal statement even not in uniform. So NA values will be filled with 'N'
+```{r}
+levels(df$offverb) <- c(levels(df$offverb),"N")
+df$offverb[df$offunif=='N' & is.na(df$offverb)] = 'N'
+```
+
+#####offshld
+The offshld column indicates whether shield is provided by the officer when not in uniform, and if the officer is in uniform the value will be null. Any row where officer is in uniform(offunif=='Y'), offshld will be filled with 'INUNIFORM'
+```{r}
+levels(df$offshld) <- c(levels(df$offshld),"INUNIFORM")
+df$offshld[df$offunif=='Y'] = 'INUNIFORM'
+summary(df$offshld)
+```
+There is still 151 NA values after 'INUNIFORM' is filled. The NA values will be assume that officer didn't show the shield even not in uniform. So NA values will be filled with 'N'
+```{r}
+levels(df$offshld) <- c(levels(df$offshld),"N")
+df$offshld[df$offunif=='N' & is.na(df$offshld)] = 'N'
+```
+
+#####stinter
+NA value in intersection will be assume that the frisk doesn't occur in the intersection and will be fill with NOTINTERSECTION. 
+```{r}
+levels(df$stinter) <- c(levels(df$stinter),"NOTINTERSECTION")
+df$stinter[is.na(df$stinter)] = "NOTINTERSECTION"
+```
+
+#####crossst
+NA value in cross street will be assume that the frisk doesn't occur in the cross street and will be fill with NOTCROSSSTREET
+```{r}
+levels(df$crossst) <- c(levels(df$crossst),"NOTCROSSSTREET")
+df$crossst[is.na(df$crossst)] = "NOTCROSSSTREET"
+```
+
+#####xcoord and ycoord
+The xcoord and ycoord is the coordinates of the stop. This will be filled in based on the coordinate of each city. 
+The average cooridinate of each city is found by
+```{r}
+noCoorNull= df[!is.na(df$xcoord),c('xcoord','ycoord','city')]
+meanQUEENSx = mean(noCoorNull[noCoorNull$city=='QUEENS',1])
+meanQUEENSy =  mean(noCoorNull[noCoorNull$city=='QUEENS',2])
+meanSTATENx =  mean(noCoorNull[noCoorNull$city=='STATEN IS',1])
+meanSTATENy =  mean(noCoorNull[noCoorNull$city=='STATEN IS',2])
+meanBROOKLYNx =  mean(noCoorNull[noCoorNull$city=='BROOKLYN',1])
+meanBROOKLYNy =  mean(noCoorNull[noCoorNull$city=='BROOKLYN',2])
+meanBRONXx =  mean(noCoorNull[noCoorNull$city=='BRONX',1])
+meanBRONXy =  mean(noCoorNull[noCoorNull$city=='BRONX',2])
+meanMANHATTANx =  mean(noCoorNull[noCoorNull$city=='MANHATTAN',1])
+meanMANHATTANy =  mean(noCoorNull[noCoorNull$city=='MANHATTAN',2])
+```
+The missing coordinate of each city is filled in with the average coordinate of each city
+```{r}
+df$xcoord[is.na(df$xcoord) & df$city=='QUEENS'] = meanQUEENSx 
+df$ycoord[is.na(df$ycoord) & df$city=='QUEENS'] = meanQUEENSy
+df$xcoord[is.na(df$xcoord) & df$city=='STATEN IS'] = meanSTATENx 
+df$ycoord[is.na(df$ycoord) & df$city=='STATEN IS'] = meanSTATENy 
+df$xcoord[is.na(df$xcoord) & df$city=='BROOKLYN'] = meanBROOKLYNx 
+df$ycoord[is.na(df$ycoord) & df$city=='BROOKLYN'] = meanBROOKLYNy 
+df$xcoord[is.na(df$xcoord) & df$city=='BRONX'] = meanBRONXx 
+df$ycoord[is.na(df$ycoord) & df$city=='BRONX'] = meanBRONXy 
+df$xcoord[is.na(df$xcoord) & df$city=='MANHATTAN'] = meanMANHATTANx 
+df$ycoord[is.na(df$ycoord) & df$city=='MANHATTAN'] = meanMANHATTANy
+```
+
+#####isforceuse (new variable)
+There are many types of physical force used by officer in the dataset, which are pf_baton, pf_drwep, pf_grnd, pf_hands, pf_hcuff, pf_other, pf_pepsp, pf_ptwep and pf_wall. A column will be added to indicate whether force is used.
+
+```{r}
+tempForce = (df$pf_baton=='Y' | df$pf_drwep == 'Y' | df$pf_grnd =='Y' | df$pf_hands =='Y' | df$pf_hcuff=='Y' | df$pf_other=='Y'| df$pf_pepsp=='Y' | df$pf_ptwep == 'Y' | df$pf_wall=='Y')
+df$isforceuse[tempForce] ='Y'
+df$isforceuse[!tempForce] = 'N'
+df$isforceuse = factor(df$isforceuse)
+summary(df$isforceuse)
+```
+
+#####forceuse
+The forceuse column indicates the reason why force is used by the officer , and if the no force is used the value will be null. Any row where no force is used(isforceuse=='N'), forceuse will be filled with 'NOFORCE'
+
+```{r}
+levels(df$forceuse) <- c(levels(df$forceuse),"NOFORCE")
+df$forceuse[df$isforceuse=='N'] = 'NOFORCE'
+summary(is.na(df$forceuse))
+```
+There is still 933 null values after 'NOFORCE' is filled. This will be dealth with later.
+
+####Further NA removal
+recalulate NAs in each column
+```{r}
+colNA = colSums(is.na(df))
+colNA[colNA>0]
+```
+
+Columns that all its value is NA will be remove. stname and addrnum will also be remove because there is too much NAs and no promising way to fill in the values
+```{r}
+df = df[,colNA!=nrow(df)]
+df = subset(df, select = -c(stname,addrnum))
+```
+
+#####Remove rows
+Check how many rows contain more than 1 NA values
+```{r}
+rowNA = rowSums(is.na(df))
+nrow(df[rowNA>1,])
+```
+
+Only 121 rows so these will be removed by invoking
+```{r}
+df = df[rowNA<=1,]
+```
+
+#####Filling in remaing column with mode
+Recalulate NAs in each column
+```{r}
+colNA = colSums(is.na(df))
+colNA[colNA>0]
+```
+
+There is only 3 columns with relatively low number of NA values and will be filled which the mode of each column
+#####premname
+```{r}
+modePremname = names(summary(df$premname)[(summary(df$premname)==max(summary(df$premname)))])
+df$premname[is.na(df$premname)] = modePremname
+modePremname
+```
+#####sector
+```{r}
+modeSector = names(summary(df$sector)[(summary(df$sector)==max(summary(df$sector)))])
+df$sector[is.na(df$sector)] = modeSector
+modeSector
+```
+#####forceuse
+```{r}
+modeForceuse = names(summary(df$forceuse[df$isforceuse=='Y'])[(summary(df$forceuse[df$isforceuse=='Y'])==max(summary(df$forceuse[df$isforceuse=='Y'])))])
+df$forceuse[is.na(df$forceuse)] = modeForceuse
+modeForceuse
+```
+
+Check whether NA still exist in the dataset
+```{r}
+colNA = colSums(is.na(df))
+colNA[colNA>0]
+```
+
+###Adding new variable
+#####weaponFound
+In the dataset the weapons is categorize into many types. It will be simpified by creating a column to indicate whether any type of weapon is found. If weapon is found, weaponFound will be set as 'Y' otherwise 'N'
+```{r}
+df$weaponfound = df$weaponfound = (df$pistol=='Y' | df$riflshot == 'Y' | df$asltweap =='Y' | df$knifcuti =='Y' | df$machgun=='Y' | df$othrweap=='Y')
+df$weaponfound[df$weaponfound] = 'Y'
+df$weaponfound[df$weaponfound=='FALSE'] = 'N'
+df$weaponfound = factor(df$weaponfound)
+```
+
+#####day
+Add days of the week, Monday to Sunday. 
+```{r}
+df$datestop = as.Date(as.character(df$datestop),format="%m/%d/%Y")
+df$day = factor(weekdays(df$datestop),levels = c('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'))
+```
+
+#####height
+Add height in cm using the ht_feet and ht_inch column
+```{r}
+df$height = ((df$ht_feet*12) + df$ht_inch) * 2.54
+```
+
+#####bmi
+bmi column will store the body mass index of the suspect. First the weight needs to be converted to kilograms. The the formula for finding bmi can be applied.
+```{r}
+df$weight = df$weight/2.2046
+df$bmi = df$weight/((df$height/100)**2)
+```
+
+####hours
+Indicate time in hours with fractions. Hours + Minute/60
+```{r}
+library(stringr)
+minutes = as.numeric(str_sub(as.character(df$timestop),-2,-1))/60
+hours = as.numeric(substr(df$timestop,1,nchar(df$timestop)-2))
+hours[is.na(hours)] = 0
+df$hours = round(hours+minutes,2)
+```
+
+
+###Find duplicates
+
+The condition of duplicate is flagged if age, height, datestop, weight and race are the same, and is likely to be the same person.
+```{r}
+dupes = duplicated(df[c('age','height','datestop','weight','race')])
+df = df[!dupes,]
+summary(dupes)
+```
+117 rows are found to be duplicate and only the duplicated row is remove from the dataset.
+
+###Outliers
+
+#####age 
+Convert age and height in to numeric
+```{r}
+df$age = as.numeric(df$age)
+df$height = as.numeric(df$height)
+```
+
+The height vs age chart is provided by CDC National Center for Health and will be use to help indicating outliers.
+
+image: ![](http://www.chartsgraphsdiagrams.com/HealthCharts/images/height-2-20-boys.png)
+
+It seems unreasonble to stop and frisk a 5 years old child and the age will be replace with the average age
+```{r}
+df$age[df$age<=5]  = mean(df$age)
+```
+
+By looking at the height vs age chart suspect that is alot higher than usual is replaced with the mean age
+```{r}
+df$age[df$age==6 & df$height >110] = mean(df$age)
+df$age[df$age==7 & df$height >135] = mean(df$age)
+df$age[df$age==8 & df$height >145] = mean(df$age)
+df$age[df$age==9 & df$height >150] = mean(df$age)
+df$age[df$age==10 & df$height >155] = mean(df$age)
+df$age[df$age==11 & df$height >160] = mean(df$age)
+df$age[df$age==12 & df$height >167] = mean(df$age)
+df$age[df$age==13 & df$height >175] = mean(df$age)
+df$age[df$age==14 & df$height >180] = mean(df$age)
+df$age[df$age==15 & df$height >185] = mean(df$age)
+df$age = round(df$age)
+```
+
+Plot age vs height to compare with the CDC data
+```{r}
+plot(df$age[df$age<15],df$height[df$age<15],pch=20,xlab = "Age",ylab="Height")
+abline(lm(df$height[df$age<15]~ df$age[df$age<15]), col="red") # regression line (y~x)
+```
+
+Statistics of the age
+```{r}
+summary(df$age)
+```
+The statistics of age seems possible and nothing else will be done to age.
+
+#####weight and height
+Looking at some statistics the invalid data can be seen
+```{r}
+summary(df$weight)
+summary(df$height)
+```
+
+Weight below 30 and above 200 will be consider as incorrect data and will be replace with average weight
+```{r}
+df$weight[df$weight<30] = mean(df$weight)
+df$weight[df$weight>200] = mean(df$weight)
+```
+
+Height below 100 and above 250 will be consider as incorrect data and will be replace with the average height
+```{r}
+df$height[df$height<30] = mean(df$height)
+df$height[df$height>200] = mean(df$height)
+```
+
+
+BMI will be help to use to indicate abnormal ratios between weight and height.
+[patient.info](https://patient.info/doctor/anorexia-nervosa-pro) stated that doctors consider BMI below 17.5 as 'Anorexia Nervosa'. BMI below 15 will be replaced with average weight and height. On the otherhand BMI above 60 will also be replaced with average weight and height.
+```{r}
+#Recalculate BMI
+df$bmi = df$weight/((df$height/100)**2)
+df$weight[df$bmi>50|df$bmi<15] = mean(df$weight)
+df$height[df$bmi>50|df$bmi<15] = mean(df$height)
+#Recalculate bmi
+df$bmi = df$weight/((df$height/100)**2)
+```
+
+Statistic of BMI and Weight
+```{r}
+summary(df$bmi)
+summary(df$weight)
+```
+The statistic of bmi and weight looks to be possible and can't be consider as an invalid data.
+
+## Appropriate Statistics of 10 attributes
+
+#####1.Age
+Statistical analysis of age can be shown by
+```{r}
+summary(df$age)
+paste("SD = ",round(sd(df$age),2)," ,IQR = ",round(IQR(df$age),2))
+```
+The distribution of age looks right-skewed this could be because police believe younger pedestrians are likely to be have illegal weapons. Or it might be that most pedesdrians are on the younger side.
+
+#####2.Height(cm)
+Statistical analysis of height can be shown by
+```{r}
+summary(df$height)
+paste("SD = ",round(sd(df$height),2)," ,IQR = ",round(IQR(df$height),2))
+```
+The distribution of height of pedestrians that are stopped is almost symetric because the mean and median is very close. The SD and IQR is low and it appear to be the the distribution of the height doesn't spread out much.
+
+#####3.Body Mass Index
+Statistical analysis of BMI can be shown by
+```{r}
+summary(df$bmi)
+paste("SD = ",round(sd(df$bmi),2)," ,IQR = ",round(IQR(df$bmi),2))
+```
+BMI of the suspect looks almost symetric because the mean and median is close together. The standard deviation and IQR is quite low and shows that the BMI doesn't spread out much.
+
+#####4.Day of the Week
+The percentage of day of the week can be found by
+```{r}
+round(summary(df$day)*100/nrow(df),2)
+```
+At first I thought that Friday and Saturday will have the most frequency because those are the days when people go out at night. But in fact the numbers of occurances on Tuesday to Saturday are similiar. While Sunday and Monday are relatively lower.
+
+#####5.Arrest made
+The percentage of each attributes in arstmade can be found by
+```{r}
+round(summary(df$arstmade)*100/nrow(df),2)
+```
+This shows that most of the people that are stopped doesn't not get arrested.
+
+#####6.Is force used
+The percentage of each attributes in forceused can be found by
+```{r}
+round(summary(df$isforceuse)*100/nrow(df),2)
+```
+This is interesting the percentage of force used is more than percentage of arrest made. Which means that officers uses force to stop pedestrians which some are innocent.
+
+#####7.Race
+The percentage of each attributes in race can be found by
+```{r}
+round(summary(df$race)*100/nrow(df),2)
+```
+Source from [Wikipedia](https://en.wikipedia.org/wiki/Demographics_of_New_York_City) White: 44.6%, Black:25.1%, Hispanic:27.5% and Asian: 11.8% is the percentage of race in New York City. This clearly shows that police are bias into suspecting Blacks and flavour the Whites.
+
+#####8.Weapon Found
+The percentage of each attributes in weaponfound can be found by
+```{r}
+round(summary(df$weaponfound)*100/nrow(df),2)
+```
+It is surprising that the percentage of weapons way lower than that of the percentage of arrested. This means than many pedestrians get arrested while not having any weapon in hand.
+
+#####9.City
+The percentage of each attributes in city can be found by
+```{r}
+round(summary(df$city)*100/nrow(df),2)
+```
+Source from [Wikipedia](https://en.wikipedia.org/wiki/Demographics_of_New_York_City) Manhattan:19.25%, Bronx:17.06% ,Brooklyn:30.79% ,Queens:27.33% ,Staten Island:5.58%. The distribution of seems to be similiar. This tells that the police didn't specifically choose one city over the other. 
+
+#####10.Sex
+The percentage of each attributes in sex can be found by
+```{r}
+round(summary(df$sex)*100/nrow(df),2)
+```
+This is suprising that over 90% of the suspect are males. It clearly shows that polices are bias towards stopping males over female
+
+
+
+##Visualize 10 attributes
+```{r}
+library(ggplot2)
+```
+
+#####1.Age
+Normal plot of height can be shown by
+```{r}
+qqnorm(df$age,pch=20,main ="Normal Plot of Age",col = rgb(0, 0, 0, 0.2))
+qqline(df$age)
+```
+
+The plot is not in a straight line and shows that it is doesn't follow the normal distribution. The age distribution is skewed to the right.
+
+#####2.Amount of stops
+The number of stops per day can be plot by
+```{r}
+a = aggregate(df$datestop, by=list(df$datestop),FUN =length)
+plot(a$Group.1,a$x,pch=20,main = "Amount of stops",xlab="Date",ylab="frequency",col = rgb(0, 0, 0, 0.2))
+abline(lm(a$x~ a$Group.1), col="red")
+```
+
+The fitted line shows that the number of stop decreases qucikly as time pass by. This could be because the officers are less active in the job? Or that they are more experience which leads to less random stops?
+
+#####3.Arrest made
+The piechart of whether the arrest is made is shown by
+```{r fig.width=6.5, fig.height=6.5}
+tb <- round(table(df$arstmade)/nrow(df),4)*100
+lbls <- paste(names(tb), "\n", tb, sep="")
+pie(tb, labels = lbls, main="Percentage of arrest made")
+```
+The piechart shows that most of the pedestrians that get stopped is innocent.
+
+#####4.Is force used
+The piechart of whether the force is used is shown by
+```{r fig.width=6.5, fig.height=6.5}
+tb <- round(table(df$isforceuse)/nrow(df),4)*100
+lbls <- paste(names(tb), "\n", tb, sep="")
+pie(tb, labels = lbls, main="Percentage of force used")
+```
+The piechart shows that most of the pedestrians that get stopped is innocent.
+
+#####5.Body Mass Index
+The distribution of Body Mass Index can be shown by
+```{r}
+hist(df$bmi, main = "Distribution of Body Mass Index",xlab ="BMI",col = "lightblue", prob = TRUE)
+lines(density(df$bmi))
+abline(v = mean(df$bmi), col = "red")
+abline(v = median(df$bmi), col = "green")
+```
+
+The read line shows the mean of BMI and the green line shows the median of BMI. The distribution of BMI is slightly right-skewed which means that there are more younger populations that are caught.
+
+#####6.Period of stop
+The histogram of the period of stop distribution can be shown by
+```{r}
+df$perstop =as.numeric(df$perstop)
+hist(df$perstop, main = "Distribution of Period per stop",xlab ="Minutes",col = "lightblue",breaks = 20)
+
+```
+By looking at the histogram of the period stop, the distribution doesn't follows the normal distribution. Most stop takes around 45-50 minutes and 0-5 minutes. The 40-45 minutes peak seems abnormal unless there is a reason for this.
+
+
+#####7.Races
+The barchartshows the population of race distribution in New York City and the distribution of the race that are stopped. The red area shows in percentage of the race that are stopped. The blue area shows the percentage of race in New York City. Only 4 the main race are choosen.
+```{r}
+temp = df$race
+levels(temp) <- c(levels(temp),"H")
+#combine black and white hispanics
+temp[temp =="P"|temp=="Q"] = "H"
+tb <- round(table(temp)/length(temp),4)*100
+tb = tb[tb>2]
+tb
+names(tb) = c("Asians","Blacks","White","Hispanic")
+tb = cbind(tb,c(9.8,26.6,44.7,27))
+tb = t(tb)
+barplot(tb,las=2,col = c("red","blue"))
+```
+
+If the person stopped didn't depend on the race the area of each barchart should be the same. However, the percentage of whites that are stopped is far less than the percentage of whites in NYC. Moreover, The percentage the blacks are stopped is far more than the percentage of blacks in NYC. This shows that officers are bias in stopping blacks and not stopping whites.
+[Source for population in NYC](https://en.wikipedia.org/wiki/Demographics_of_New_York_City)
+
+#####8.Weapon Found
+Piechart of percentage to shows whether the weapons are found can be shown by
+```{r fig.width=6.5, fig.height=6.5}
+tb <- round(table(df$weaponfound)/nrow(df),4)*100
+lbls <- paste(names(tb), "\n", tb, sep="")
+pie(tb, labels = lbls, main="Percentage of weapon found")
+```
+
+
+#####9.City
+The barplot shows the difference between the percentage of the city that pedestrians were stop and the percentage population of each city.
+```{r}
+tb <- round(table(df$city)/nrow(df),4)*100
+tb = tb - c(17.06,30.79,19.25,27.33,5.58)
+barplot(tb,las=2,col = c("lightblue"))
+```
+
+
+[Source](https://en.wikipedia.org/wiki/Demographics_of_New_York_City) The positive barchart shows that officers stop more pedestrian in this city. However, the values is so little that no conclusion can be made in whether pedestrian in which city is more likely to be stopped.
+
+#####10.hours
+The histogram that shows what time of the day pedestrians are likely to get stopped are plotted by 
+```{r}
+hist(df$hours,breaks = 24,main = "time of the day",xlab = 'time')
+```
+
+The stop mostly occur at night from 19:00 to 02:00 and least in the morning from 05:00 to 10:00. The explanation for this could be that people are hurry to work in the morning and officers doesn't want to interfere. While at night, crimes rate usually rise.
+
+
+##10 Relationship Between Attributes
+
+
+#####1.Weight and height
+```{r}
+plot(df$weight,df$height,pch=20,main="Weight vs Height",xlab = "Weight",ylab = "Height")
+abline(lm(df$height~ df$weight),col = rgb(0, 0, 0, 0.2))
+```
+
+#####2.Date and Race
+Plot to show how officer stop pedestrian base on race changes over time.
+```{r fig.width=8, fig.height=8}
+df$month = months(as.Date(df$datestop))
+df$month = factor(df$month,levels = c("January","February","March","April","May","June","July","August","September","October","November","December"))
+
+plot(table(df$month,df$race),las = 2,main = "Suspect's Race Ratio against time ")
+```
+From the plot the chance of each race getting stop stay relatively constant. Which means that police still suspect the blacks more than the white throughout the year 2016.
+
+#####3.Date and city
+Plot to show how the amount of pedestrian stops change over time.
+```{r fig.width=8, fig.height=8}
+plot(table(df$month,df$city),las = 2 ,main = "City of stop against time")
+```
+From the plot the width of the plot gets smaller which means that less stops occur. However, the amount of stops in each city stays about the same.
+
+#####4.Arrest made and City
+To show the ratio whether which city is likely to get arrested the graph can be plot as follows
+```{r}
+tb = table(df$arstmade,df$city)
+for (x in 1:ncol(tb)){
+  tb[,x] = tb[,x]*100/sum(tb[,x])
+}
+
+barplot(tb,las = 2,xlab = "Arrested?",ylab="City",legend = rownames(tb))
+```
+
+The height of the barchart is 100% and the darker area represents no arrest have been made. From the chart chances of getting arrest in different cities is very similiar.
+
+#####5.Arrest made and Race
+To show which race is likely to be arrested can be shown as follows
+```{r}
+tb = table(df$arstmade,df$race)
+for (x in 1:ncol(tb)){
+  tb[,x] = tb[,x]*100/sum(tb[,x])
+}
+barplot(tb,xlab = "Arrest?",ylab = "Race",legend = rownames(tb))
+```
+
+This doesn't not support the reason why blacks are getting stop more often and whites getting stop less. There doesn't not seem to be any relationship between getting arrested and race.
+
+#####6.Arrest made and Frisked
+To show the relationships between arrest made and frisked a chart can be plot by
+```{r}
+tb = table(df$arstmade,df$frisked)
+for (x in 1:ncol(tb)){
+  tb[,x] = tb[,x]*100/sum(tb[,x])
+}
+barplot(tb,xlab = "Arrest?",ylab = "Frisked?",legend = rownames(tb))
+```
+
+The darker area shows that the no arrest is made. The percentage of arrest is more when the suspect have been frisked. This make sense because if the police didn't frisk the suspect illegal items may not have been found.
+
+#####7.Arrest made and Weapon found
+The relationship between weapon found and arrest made can be shown by
+```{r}
+library(vcd)
+ mosaic(~arstmade+weaponfound,data = df,gp=shading_Friendly2())
+```
+
+There seems to be a high correlation between weapon found and arrest mande which makes sense. If weapons are found on the suspect an arrest is likely to be made and vice versa.
+
+#####8.Is force used vs Weapon found
+The relationship between is force used and weapon found can be shown with a mosaic plot using 'vcd' library by
+```{r}
+ mosaic(~isforceuse+weaponfound,data = df,gp=shading_Friendly2())
+```
+
+Looking at the plot there seems to be some relationship between this 2 attributes. If force is used it is likely that weapon have been found by the police.
+
+#####9.Crime suspected(top 5) and Arrest made
+The relationship between crime suspected and arrest made can be shown as follows
+```{r}
+
+top = 5
+x = sort(summary(df$crimsusp)[names(summary(df$crimsusp))!="(Other)"])
+x = x[(length(x)-top+1):length(x)]
+
+tb = table(df$arstmade,df$crimsusp)
+tb = tb[,(names(x)[1:length(x)])]
+
+for (x in 1:ncol(tb)){
+  tb[,x] = tb[,x]*100/sum(tb[,x])
+}
+barplot(tb,xlab = "Crime suspected",ylab = "Arrest made?",legend = rownames(tb),las = 2)
+```
+
+Looking at the graph, pedestrians that are suspected with MISD get arrested most often. This could be that officers suspect MISD crimes with higher accuracy.
+
+#####10. Sex and Frisked
+To see whether chance of getting frisked and sex have relationships among a mosaic plot can be created
+```{r}
+mosaic(~sex+frisked,data = df,gp=shading_Friendly2())
+```
+There seems to be a relationship between frisked and sex. If the person is female the chance of getting frisked is low. However, if the person stopped is male the chance of getting frisked is slightly higher.
+
+
+
+
+

@@ -1,0 +1,210 @@
+---
+title: "Datamining Project 3"
+author: "Paichana Kularb 57090015"
+
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Modeling
+Load libraries and data
+```{r ,message=FALSE}
+library(arules)
+library(arulesViz)
+data("Groceries")
+```
+Summary of the data
+```{r}
+summary(Groceries)
+```
+
+
+Get the frequency of each item
+```{r}
+freq = itemFrequency(Groceries,'relative')
+freq = sort(freq,decreasing = TRUE)
+```
+
+Visualize the all relative frequency of items
+```{r}
+x = c(1:length(freq))
+plot(x,freq,type = 'l',xlab = 'Items',ylab = 'Support',main = "Relative Frequency")
+
+```
+
+Visualize the top 20 items in terms of frequency
+```{r, fig.width=12, fig.height=5 , fig.width= 10}
+itemFrequencyPlot(Groceries,topN=20,type="relative")
+```
+
+Visualize the size of each transaction
+```{r}
+transSize = sort(size(Groceries),decreasing = TRUE)
+x = c(1:length(size(Groceries)))
+plot(x,transSize,type = 'l',xlab = 'Transaction',ylab = 'Transaction Size',main = "Relative Frequency")
+
+```
+
+
+The rules are mine using the apriori algorithm:
+
+Minimum support is 0.001 because the dataset is very sparse. The rules does not appear frequently in the dataset.
+
+Minimum confidence is set to 0.75 because I want to be 75% sure that the rule is correct based on the past data.
+```{r}
+minSup = 0.001
+minCon = 0.75
+rules = apriori(Groceries,parameter = list(supp = minSup,conf = minCon))
+```
+777 rules are created
+
+Contingency table that shows how many times an item is purchased together can be shown by
+```{r}
+tb = crossTable(Groceries, sort=TRUE)
+tb[1:5,1:5]
+```
+
+
+Remove redundent rules, "A rule is redundant if a more general rules with the same or a higher confidence exists." quoted from https://cran.r-project.org/web/packages/arules/arules.pdf
+```{r}
+rules = rules[is.redundant(rules)==FALSE]
+rules
+```
+
+The top 10 rules based on the confidence level can be shown with the following script
+```{r}
+rules = sort(rules,by=c('confidence'),decreasing = TRUE)
+inspect(rules[1:10])
+```
+Most of the right handside of the rule is whole milk because whole milk occur in most transactions. And these rules involving whole milk will be above the minimum support.
+
+The size of the item set in the rules can be shown by
+```{r}
+barplot(table(size(rules)), xlab="itemset size", ylab="count")
+```
+
+Most of the rules generated have the size of 4
+
+##Evaluation
+10 most interesting rules are
+
+####Rule 1
+Highest confidence rule can be shown by 
+```{r}
+rules = sort(rules,by=c('confidence','lift','support','count'),decreasing = TRUE)
+inspect(rules[1])
+```
+The rule above have the most confidence value which is 1.
+The transaction seems to be including varieties of fruits and vegetable which is sensible. But in my opinion whipped/sour cream should not belong in this rule. I could not think of a reason by whipped/sour cream -> other vegetables
+
+####Rule 2
+Highest lift rule can be shown by
+```{r}
+rules = sort(rules,by=c('lift','confidence','support','count'),decreasing = TRUE)
+inspect(rules[1])
+```
+The occurence of beer and {liquor,red/blush wine} is dependent to each other since the value of lift around 11.2. . This make sense since when buying alcohol berverages we buy more than one type.
+
+####Rule 3
+Highest support rule can be shown by
+```{r}
+rules = sort(rules,by=c('support','lift','confidence','count'),decreasing = TRUE)
+inspect(rules[1])
+```
+The highest support is still low this is could be because the data contain many transactions. The rule shows that if a transaction contain citrus fruit, tropical fruit and root vegetables it is likely to contain other vegetables. This rule have the most support value because in groceries people often buy vetegatble and fruits. 
+This rule is also a broader rule of the 1st rule and could be represent by it. It is not redundent because the more general rule confidence level is higher.
+
+####Rule 4
+I like drinking milk and wanted to know what which item purchased leads to purchasing milk. 
+```{r}
+rhsMilk = subset(rules, subset = rhs %in% "whole milk" )
+rhsMilk = sort(rhsMilk,by=c('lift','support','confidence','count'),decreasing = TRUE)
+inspect(rhsMilk[1])
+```
+{Whipped cream , flour} => whole milk make sense because these are ingredients to bake cakes. But root vetegable doesn't really goes into this category.
+
+####Rule 5
+To diplay others rules where the items in the RHS which is different from the above(sort by lift)
+```{r}
+r = subset(rules, subset = !(rhs %in% "whole milk" | rhs %in% "bottled beer" | rhs %in% "other vegetables") )
+r = sort(r,by=c('lift','support','confidence','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+####Rules 6
+Rules that doesn't involve whole milk, bottled beer and vetegables which is not interesting since rules above already include these items
+```{r}
+r = subset(rules, subset = !(rhs %in% "whole milk" | rhs %in% "bottled beer" | rhs %in% "other vegetables" | rhs %in% "other vegetables" |rhs %in% "root vegetables" |
+lhs %in% "whole milk" | lhs %in% "bottled beer" | lhs %in% "other vegetables" | lhs %in% "other vegetables" |lhs %in% "root vegetables"))
+r = sort(r,by=c('confidence','support','lift','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+I wanted to cover all items in the rhs, all rhs items can be shown by
+```{r}
+df = data.frame(lhs = labels(lhs(rules), setStart = "", setEnd = ""), 
+           rhs = labels(rhs(rules), setStart = "", setEnd = ""))
+summary(df$rhs)
+```
+
+####Rules 7
+Soda which are the remaing rhs items that have not be shown above can be shown by
+```{r}
+r = subset(rules, subset = rhs %in% "soda" )
+r = sort(r,by=c('lift','support','confidence','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+####Rules 8
+Tropical fruit which are the remaing rhs items that have not be shown above can be shown by
+```{r}
+r = subset(rules, subset = rhs %in% "tropical fruit" )
+r = sort(r,by=c('lift','support','confidence','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+####Rules 9
+Rolls/Buns fruit which are the remaing rhs items that have not be shown above can be shown by
+```{r}
+r = subset(rules, subset = rhs %in% "rolls/buns" )
+r = sort(r,by=c('lift','support','confidence','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+####Rules 10
+The value of conviction is set to negative because the lower the better. Conviction measures lhs appears without rhs if they were dependent. The transaction with the lowest conviction can be shown by
+```{r}
+quality(rules) = cbind(quality(rules),-interestMeasure(rules,c("gini","conviction"),transactions = Groceries))
+r = sort(rules,by=c('conviction','lift','support','confidence','count'),decreasing = TRUE)
+inspect(r[1])
+```
+
+
+
+##Deployment
+The rules could be used by the store owner as a guide to where items should be located on the shelf. The information could also be use to suggest additional products to the user according to the user's purchase. This could improve the sales of the products which will result in a increase revenue. 
+
+The customer can benefit from this rule also, by suggestion of product he/she might want.
+
+The effectiveness of the rules depends on the minimum support and minimum confidence.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
