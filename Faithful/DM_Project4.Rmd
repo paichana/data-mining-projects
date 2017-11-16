@@ -1,0 +1,351 @@
+---
+title: "Data Mining Project 4"
+output: html_document
+---
+
+
+Import libraries and dataset
+```{r}
+library(cluster)
+library(factoextra)
+library(dbscan)
+library(seriation)
+library(fpc)
+df = faithful
+```
+
+Set random seed so that the results can be reproducible
+```{r}
+set.seed(0)
+```
+
+Check for NAs in the dataset
+```{r}
+summary(is.na(faithful))
+```
+
+##Finding suitable number of clusters
+
+Histogram with 20 bins that is group according to eruption time can be show by:
+```{r}
+erup = df$eruptions 
+rangErup = range(erup)
+interval = seq(rangErup[1], rangErup[2], by=((rangErup[2]-rangErup[1])/20))
+erup.interval = cut(erup,interval)
+plot(erup.interval,xlab = "Eruption interval",ylab = "Freq",main = "Frequency of eruption's interval")
+```
+2 groups of data can be seen
+
+
+Histogram with 20 bins that is group according to waiting time can be show by:
+```{r}
+wait = df$waiting 
+rangeWait = range(wait)
+interval =seq(rangeWait[1], rangeWait[2], by=((rangeWait[2]-rangeWait[1])/20))
+erup.interval = cut(wait,interval)
+plot(erup.interval,xlab = "Eruption interval",ylab = "Freq",main = "Frequency of eruption's interval")
+```
+2 groups of data can be seen
+
+Scale data in to standard normal distribution with mean of 0 and sd of 1
+```{r}
+df = scale(df)
+```
+
+
+
+The optimal number of clusters can also be shown by using the Average Silhouette Method. 
+```{r}
+fviz_nbclust(df, FUN = hcut, method = "silhouette")
+```
+The Average Silhouette Method determines the quality of each cluster. The higher the number the better the clustering. From the graph 2 cluster maximizes the value.
+
+Another way to determine the optimal is Elbow Method. 
+```{r}
+fviz_nbclust(df, FUN = hcut, method = "wss")
+```
+The Elbow Method computes how well the clusters is grouped together. The smaller the number means that the variance in each group is smaller. The value decrease abruply at 2 clusters.
+
+Plot data so that groups can be seen, since there is only 2 dimension scatter plot will be used
+```{r}
+plot(df,type = 'p')
+```
+The plot shows that the data can be seperated by 2 groups
+
+All of the above method suggest that the suitable number of clusters is 2
+
+##K-means clustering
+
+K-mean with 2 clusters. The algorithm will be run 10 times randomly choosing different centroids, the best one will be kept. 
+```{r}
+km = kmeans(df,centers = 2,nstart = 10)
+km
+```
+
+The data can be plot as follows:
+```{r}
+fviz_cluster(list(data = df, cluster = km$cluster),labelsize = 0)
+```
+
+## Hierarchical clustering 
+Euclidean distance will be used as the distance metric for all of the clustering
+
+###Single Link
+
+The dendogram of Hierarchical clustering with single link can be shown by:
+```{r}
+clusSingle = agnes(df,method = 'single',metric = "euclidean")
+plot(clusSingle,which.plot = 2,main = "Single Link Dendogram")
+```
+
+Agglomerative coefficient using single link
+```{r}
+sl.ac = clusSingle$ac
+sl.ac
+```
+
+Cophenetic Correlation Coefficient using single link
+```{r}
+copSingle = cophenetic(clusSingle)
+sl.ccc = cor(dist(df,"euclidean") ,copSingle)
+sl.ccc
+```
+
+Average silhouette coefficient using single link
+```{r}
+silSL = silhouette(cutree(clusSingle,2),dist(df))
+sl.avs = mean(silSL[,3])
+```
+
+### 2 Clusters from Single Link method
+
+```{r}
+clusGroupSL = cutree(clusSingle,k = 2)
+table(clusGroupSL)
+fviz_cluster(list(data = df, cluster = clusGroupSL),labelsize = 0)
+plot(clusSingle,which.plot = 2, cex = 0.6)
+rect.hclust(clusSingle, k = 2, border = c(2,4))
+```
+
+
+##Complete Link
+
+The dendogram of Hierarchical clustering with complete link can be shown by: 
+```{r}
+clusComplete = agnes(df,method = 'complete',metric = "euclidean")
+plot(clusComplete,which.plot = 2,main = "Complete Link Dendogram", cex = 0.6, hang = -1)
+```
+
+Agglomerative coefficient using complete link
+```{r}
+cl.ac = clusComplete$ac
+```
+
+Cophenetic Correlation Coefficient using complete link
+```{r}
+copComplete = cophenetic(clusComplete)
+cl.ccc = cor(dist(df,"euclidean") ,copComplete)
+cl.ccc
+```
+
+Average silhouette coefficient using complete link
+```{r}
+silCL = silhouette(cutree(clusComplete,2),dist(df))
+cl.avs= mean(silCL[,3])
+```
+
+### 2 Clusters from Complete Link method
+```{r}
+clusGroupCL = cutree(clusComplete,k = 2)
+table(clusGroupCL)
+fviz_cluster(list(data = df, cluster = clusGroupCL),labelsize = 0)
+plot(clusComplete,which.plot = 2, cex = 0.6)
+rect.hclust(clusComplete, k = 2, border = c(2,4))
+```
+
+
+##Group Average
+
+The dendogram of Hierarchical clustering with group average can be shown by: 
+```{r}
+clusAVG = agnes(df,method = 'average',metric = "euclidean")
+plot(clusAVG,which.plot = 2,main = "Group Average Dendogram", cex = 0.6, hang = -1)
+```
+
+Agglomerative coefficient using group average
+```{r}
+ga.ac = clusAVG$ac
+ga.ac
+```
+
+Cophenetic Correlation Coefficient using group average
+```{r}
+copAVG = cophenetic(clusAVG)
+ga.ccc = cor(dist(df,"euclidean") ,copAVG)
+ga.ccc
+```
+
+Average silhouette coefficient using group average
+```{r}
+silAVG = silhouette(cutree(clusAVG,2),dist(df))
+ga.avs= mean(silAVG[,3])
+```
+
+### 2 Clusters from group average method
+```{r}
+clusGroupGA = cutree(clusAVG,k = 2)
+table(clusGroupGA)
+fviz_cluster(list(data = df, cluster = clusGroupGA),labelsize = 0)
+
+plot(clusAVG,which.plot = 2, cex = 0.6)
+rect.hclust(clusAVG, k = 2, border = c(2,4))
+```
+
+
+##Ward's Method
+
+The dendogram of Hierarchical clustering with group average can be shown by: 
+```{r}
+clusWard = agnes(df,method = 'ward',metric = "euclidean")
+plot(clusWard,which.plot = 2,main = "Ward's Method Dendogram", cex = 0.6, hang = -1)
+```
+
+Agglomerative coefficient using Ward's method
+```{r}
+wm.ac = clusWard$ac
+wm.ac
+```
+
+Cophenetic Correlation Coefficient using Ward's method
+```{r}
+copWard = cophenetic(clusWard)
+wm.ccc = cor(dist(df,"euclidean") ,copWard)
+wm.ccc
+```
+
+Average silhouette coefficient using Ward's method
+```{r}
+silWM = silhouette(cutree(clusWard,2),dist(df))
+wm.avs= mean(silWM[,3])
+```
+
+###2 Clusters from Ward's method
+```{r}
+clusGroupWM = cutree(clusWard,k = 2)
+table(clusGroupWM)
+fviz_cluster(list(data = df, cluster = clusGroupWM),labelsize = 0)
+
+plot(clusWard,which.plot = 2, cex = 0.6)
+rect.hclust(clusWard, k = 2, border = c(2,4))
+```
+
+
+##Centroid
+The dendogram of Hierarchical clustering with centroid can be shown by: 
+```{r}
+clusCentroid <- hclust(dist(df,"euclidean"), method = "centroid" )
+plot(clusCentroid,main = "Centroid Dendogram", cex = 0.6, hang = -1)
+```
+
+Agglomerative coefficient using centroid
+```{r}
+cen.ac = coefHier(clusCentroid)
+cen.ac
+```
+
+Cophenetic Correlation Coefficient using centroid
+```{r}
+copCentroid = cophenetic(clusCentroid)
+cen.ccc = cor(dist(df,"euclidean") ,copCentroid)
+cen.ccc
+```
+
+Average silhouette coefficient using centroid
+```{r}
+silCEN = silhouette(cutree(clusCentroid,2),dist(df))
+cen.avs= mean(silCEN[,3])
+```
+
+###2 Clusters from centroid method
+```{r}
+clusGroupCEN = cutree(clusCentroid,k = 2)
+table(clusGroupCEN)
+fviz_cluster(list(data = df, cluster = clusGroupCEN),labelsize = 0)
+plot(clusCentroid, cex = 0.6)
+rect.hclust(clusCentroid, k = 2, border = c(2,4))
+```
+
+## Comparing different methods
+```{r}
+result = cbind(c("single","complete","group","ward","centroid"),c(sl.ac,cl.ac,ga.ac,wm.ac,cen.ac),c(sl.ccc,cl.ccc,ga.ccc,wm.ccc,cen.ccc),c(sl.avs,cl.avs,ga.avs,wm.avs,cen.avs))
+
+colnames(result) = c('Method','Agglomerative','Cophenetic Correlation',"Silhouette")
+result
+```
+
+The Average Silhouette coefficient of all points are the same because all of the algorithm group data in the same manner.
+The cophenetic correllation coefficient is used to evalute the hierarchical clusters, The higher the value the better. Using group average as the linking criteria maximizes the value.
+
+Agglomerative coefficient shows the strenght of the cluster. Ward's method as the linkage criteria result in the highest Aggolomerative coeeficient.
+
+##DBSCAN
+Plot K Nearest Neighbor 
+```{r}
+kSeq = seq(5,100,10)
+
+for (minK in kSeq){
+  kNNdist(df, k=minK, search="kd")
+  kNNdistplot(df, k=minK)
+}
+```
+I have decided to select where K = 45 and the knee is around 0.5. So the DBSCAN will have the parameter of MinPts = 45 and Eps = 0.5
+
+Create DBSCAN with above parameter
+```{r}
+db = dbscan(df,eps = 0.5,MinPts = 45)
+db
+```
+
+Plot result of clusters from DBScan. The document stated that outliers in the DBSCAN will be 0. The cluster values will be added 1 so that the outlier will be plot in black.
+
+```{r}
+plot(df, col = db$cluster + 1)
+```
+
+Plot without outliers
+```{r}
+plot(df, col = db$cluster)
+```
+
+##Best Method For Faithful Dataset
+Compare between DBSCAN, K-Mean and Hierachical Clustering (Group Average and Ward's Method)
+###Displot
+```{r}
+dissplot(dist(df), labels=db$cluster+1, options=list(main="DBSCAN"))
+
+dissplot(dist(df), labels=km$cluster, options=list(main="K-Mean"))
+
+dissplot(dist(df), labels=clusGroupGA, options=list(main="Group AVG"))
+
+dissplot(dist(df), labels=clusGroupWM, options=list(main="Ward's Method"))
+
+```
+
+
+
+```{r}
+#results = c('average.between','average.within','avg.silwidth ','within.cluster.ss','dunn','entropy')
+
+statSum = cbind(cluster.stats(dist(df), clusGroupGA),
+cluster.stats(dist(df), clusGroupWM),
+cluster.stats(dist(df), db$cluster+1),
+cluster.stats(dist(df), -(db$cluster+1),noisecluster=TRUE),
+cluster.stats(dist(df), km$cluster))
+
+colnames(statSum)  = c('Group Average','Ward\'s Method',"DBSCAN with Outlier","DBSCAN without Outlier","K-Mean")
+
+statSum
+```
+
+
+
