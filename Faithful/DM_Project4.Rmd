@@ -1,6 +1,9 @@
 ---
 title: "Data Mining Project 4"
-output: html_document
+author: "Paichana Kularb 57090015"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 
@@ -319,33 +322,32 @@ plot(df, col = db$cluster)
 
 ##Best Method For Faithful Dataset
 Compare between DBSCAN, K-Mean and Hierachical Clustering (Group Average and Ward's Method)
-###Displot
+
+###Compare each method using various evaluation measures
 ```{r}
-dissplot(dist(df), labels=db$cluster+1, options=list(main="DBSCAN"))
+results = c('average.between','average.within','avg.silwidth','within.cluster.ss')
 
-dissplot(dist(df), labels=km$cluster, options=list(main="K-Mean"))
-
-dissplot(dist(df), labels=clusGroupGA, options=list(main="Group AVG"))
-
-dissplot(dist(df), labels=clusGroupWM, options=list(main="Ward's Method"))
-
-```
-
-
-
-```{r}
-#results = c('average.between','average.within','avg.silwidth ','within.cluster.ss','dunn','entropy')
-
-statSum = cbind(cluster.stats(dist(df), clusGroupGA),
-cluster.stats(dist(df), clusGroupWM),
-cluster.stats(dist(df), db$cluster+1),
-cluster.stats(dist(df), -(db$cluster+1),noisecluster=TRUE),
-cluster.stats(dist(df), km$cluster))
+statSum = cbind(cluster.stats(dist(df), clusGroupGA)[results],
+cluster.stats(dist(df), clusGroupWM)[results],
+cluster.stats(dist(df), db$cluster+1)[results],
+cluster.stats(dist(df), -(db$cluster+1),noisecluster=TRUE)[results],
+cluster.stats(dist(df), km$cluster)[results]
+)
 
 colnames(statSum)  = c('Group Average','Ward\'s Method',"DBSCAN with Outlier","DBSCAN without Outlier","K-Mean")
 
-statSum
+t(statSum)
 ```
 
+A better cluster generally is compact with low variance in the group and the distance between each cluster is high relative to the variance. 
 
+Evaluation measures:
+
+* average.between: average distance between clusters
+  + average.within: average distance within the clusters
+  + avg.silwidth: Average silhouette width
+  + within.cluster.ss: Within cluster's sum of squares 
+
+
+Looking at the values the best method is DBSCAN even with the outliers included. The measures seems to show that DBSCAN is the most suitable method for this problem. Since it creates the most compact cluster that is well seperated.
 

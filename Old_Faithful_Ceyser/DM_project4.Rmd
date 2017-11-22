@@ -1,0 +1,64 @@
+---
+title: "DM_Project4"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load library
+```{r}
+library(cluster)
+```
+
+
+Set seed so that the result can be reproducible
+```{r}
+set.seed(0)
+```
+
+Load data to dataframe
+```{r}
+ff = data.frame(faithful)
+```
+Scale the data so that the mean is at 0 and sd at 1
+```{r}
+ff = scale(ff)
+```
+
+##Modeling
+Plot the data in a scatter plot
+```{r}
+plot(ff)
+```
+From the plot, 2 groups of data can be seen. So the number of clusters is 2. The number of clusters is determine using the scatter plot above.
+
+###K-Mean cluster
+Plot K-mean with 2 clusters. The algorithm is run 20 times with random central inilization, the best centroid will be kept.
+```{r}
+km <- kmeans(ff, centers=2, nstart=20)
+plot(ff, col=km$cluster)
+points(km$centers[,1],km$centers[,2],pch=16,col = 5)
+km
+```
+
+
+###Hierarchical using Single link 
+```{r}
+clusDist = dist(ff)
+clusSinLink = hclust(d = clusDist,method = 'single')
+```
+
+###Hierarchical using Single link 
+```{r}
+
+```
+
+
+
+
+
+
